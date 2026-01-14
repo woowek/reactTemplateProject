@@ -1,0 +1,13 @@
+/**
+ * 환경 변수 타입 정의
+ */
+
+interface ImportMetaEnv {
+  readonly VITE_APP_TITLE: string
+  readonly VITE_API_BASE_URL: string
+  readonly VITE_APP_ENV: 'development' | 'staging' | 'production'
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv
+}
