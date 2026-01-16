@@ -17,143 +17,107 @@ export const Terminal = () => {
   const socketRef = useRef<WebSocket | null>(null)
   const [isConnected, setIsConnected] = useState(false)
   const [connectionError, setConnectionError] = useState<string | null>(null)
+  const [mode, setMode] = useState<'local' | 'container'>('local')
+  const [containerName, setContainerName] = useState('')
 
   useEffect(() => {
     if (!terminalRef.current) return
+    
+    let cleanup: (() => void) | undefined
 
-    // xterm.js 인스턴스 생성
+    // xterm.js 터미널 생성
     const term = new XTerm({
       cursorBlink: true,
-      cursorStyle: 'block',
       fontSize: 14,
       fontFamily: 'Consolas, "Courier New", monospace',
       theme: {
         background: '#1e1e1e',
         foreground: '#d4d4d4',
-        cursor: '#ffffff',
-        black: '#000000',
-        red: '#cd3131',
-        green: '#0dbc79',
-        yellow: '#e5e510',
-        blue: '#2472c8',
-        magenta: '#bc3fbc',
-        cyan: '#11a8cd',
-        white: '#e5e5e5',
-        brightBlack: '#666666',
-        brightRed: '#f14c4c',
-        brightGreen: '#23d18b',
-        brightYellow: '#f5f543',
-        brightBlue: '#3b8eea',
-        brightMagenta: '#d670d6',
-        brightCyan: '#29b8db',
-        brightWhite: '#e5e5e5',
       },
-      // rows와 cols를 지정하지 않고 자동으로 맞춤
-      allowProposedApi: true,
       scrollback: 1000,
       convertEol: true,
     })
 
     // 애드온 추가
     const fitAddon = new FitAddon()
-    const webLinksAddon = new WebLinksAddon()
-
     term.loadAddon(fitAddon)
-    term.loadAddon(webLinksAddon)
+    term.loadAddon(new WebLinksAddon())
 
     // 터미널 열기
     term.open(terminalRef.current)
+    xtermRef.current = term
+    fitAddonRef.current = fitAddon
     
-    // fit()을 약간 지연시켜서 DOM이 완전히 렌더링된 후 실행
-    setTimeout(() => {
+    // 크기 자동 조정
+    const initTimer = setTimeout(() => {
       fitAddon.fit()
       
-      // 서버에 초기 크기 전달
-      const wsUrl = 'ws://localhost:8080'
-      
-      term.writeln('\x1b[1;36m🔌 터미널 서버에 연결 중...\x1b[0m')
-      
-      const socket = new WebSocket(wsUrl)
+      // WebSocket 연결
+      const socket = new WebSocket('ws://localhost:8080')
       socketRef.current = socket
 
       socket.onopen = () => {
         setIsConnected(true)
         setConnectionError(null)
-        term.writeln('\x1b[1;32m✅ 연결 완료!\x1b[0m')
-        term.writeln('\x1b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m')
-        term.writeln('')
         
-        // 연결 직후 터미널 크기 전송
-        socket.send(
-          JSON.stringify({
-            type: 'resize',
-            cols: term.cols,
-            rows: term.rows,
-          })
-        )
+        // 초기화 메시지 전송 (모드 선택)
+        socket.send(JSON.stringify({ 
+          type: 'init',
+          mode: mode,
+          containerName: mode === 'container' ? containerName : '',
+          cols: term.cols,
+          rows: term.rows
+        }))
       }
 
-      socket.onerror = () => {
-        setConnectionError('터미널 서버 연결 실패')
-        term.writeln('\x1b[1;31m❌ 연결 실패!\x1b[0m')
-        term.writeln('\x1b[1;33m터미널 서버가 실행 중인지 확인하세요:\x1b[0m')
-        term.writeln('\x1b[0;37m  node terminalServer.js\x1b[0m')
-        term.writeln('')
-      }
-
-      socket.onclose = () => {
-        setIsConnected(false)
-        term.writeln('')
-        term.writeln('\x1b[1;31m🔌 서버 연결이 종료되었습니다.\x1b[0m')
-      }
-
-      // 서버에서 받은 데이터 → 터미널에 표시
+      // 데이터 수신 → 화면 출력
       socket.onmessage = (event) => {
         term.write(event.data)
       }
 
-      // 터미널 입력 → 서버로 전송
+      socket.onerror = () => {
+        setConnectionError('서버 연결 실패')
+        term.writeln('\x1b[31m❌ 연결 실패\x1b[0m')
+        term.writeln('터미널 서버를 실행하세요: node terminalServer.js\n')
+      }
+
+      socket.onclose = () => {
+        setIsConnected(false)
+        term.writeln('\n\x1b[31m🔌 서버 연결 종료\x1b[0m')
+      }
+
+      // 키보드 입력 → 서버 전송
       term.onData((data) => {
         if (socket.readyState === WebSocket.OPEN) {
           socket.send(data)
         }
       })
 
-      // 창 크기 조정 시 터미널 크기 재조정
+      // 창 크기 변경 처리
       const handleResize = () => {
         fitAddon.fit()
         if (socket.readyState === WebSocket.OPEN) {
-          socket.send(
-            JSON.stringify({
-              type: 'resize',
-              cols: term.cols,
-              rows: term.rows,
-            })
-          )
+          socket.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }))
         }
       }
       window.addEventListener('resize', handleResize)
 
-      // cleanup 함수 저장
-      xtermRef.current = term
-      fitAddonRef.current = fitAddon
-      
-      // cleanup을 위한 함수 반환
-      return () => {
+      cleanup = () => {
         window.removeEventListener('resize', handleResize)
         socket.close()
+        term.dispose()
       }
-    }, 100) // 100ms 지연
+    }, 100)
 
     return () => {
-      if (xtermRef.current) {
-        xtermRef.current.dispose()
-      }
-      if (socketRef.current) {
-        socketRef.current.close()
+      clearTimeout(initTimer)
+      if (cleanup) {
+        cleanup()
+      } else {
+        term.dispose()
       }
     }
-  }, [])
+  }, [mode, containerName])
 
   const handleReconnect = () => {
     window.location.reload()
@@ -164,6 +128,42 @@ export const Terminal = () => {
       <div className="page-header">
         <h1>⌨️ 실시간 터미널</h1>
         <p>WebSocket을 통해 실제 shell과 연결된 터미널</p>
+      </div>
+
+      <div className="terminal-controls">
+        <div className="control-group">
+          <label>
+            <input 
+              type="radio" 
+              value="local" 
+              checked={mode === 'local'}
+              onChange={(e) => setMode(e.target.value as 'local')}
+              disabled={isConnected}
+            />
+            🖥️ 로컬 터미널
+          </label>
+          <label>
+            <input 
+              type="radio" 
+              value="container" 
+              checked={mode === 'container'}
+              onChange={(e) => setMode(e.target.value as 'container')}
+              disabled={isConnected}
+            />
+            🐳 Docker 컨테이너
+          </label>
+        </div>
+        {mode === 'container' && (
+          <div className="container-input">
+            <input
+              type="text"
+              placeholder="컨테이너 이름 또는 ID"
+              value={containerName}
+              onChange={(e) => setContainerName(e.target.value)}
+              disabled={isConnected}
+            />
+          </div>
+        )}
       </div>
 
       <div className="terminal-status">
@@ -205,7 +205,7 @@ export const Terminal = () => {
         <ul>
           <li>✅ <strong>실제 shell 명령어 실행</strong> (PowerShell/Bash)</li>
           <li>✅ <strong>WebSocket 실시간 통신</strong></li>
-          <li>✅ <strong>양방향 데이터 스트림</strong> (입력/출력)</li>
+          <li>✅ <strong>Docker 컨테이너 지원</strong> 🐳</li>
           <li>✅ <strong>ANSI 색상 완벽 지원</strong></li>
         </ul>
         <h3>⚙️ 서버 실행 방법</h3>
