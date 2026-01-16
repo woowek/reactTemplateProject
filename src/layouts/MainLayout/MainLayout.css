@@ -1,0 +1,37 @@
+/* ========================================
+   Main Layout Structure
+   ======================================== */
+
+.main-layout {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: var(--color-gray-50);
+}
+
+.main-container {
+  display: flex;
+  flex: 1;
+  position: relative;
+}
+
+.main-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background-color: var(--color-gray-50);
+  min-height: calc(100vh - 64px); /* Header 높이만큼 빼기 */
+}
+
+.content-wrapper {
+  padding: var(--spacing-xl);
+  width: 100%;
+  /* max-width 제거하여 전체 너비 사용 */
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .content-wrapper {
+    padding: var(--spacing-md);
+  }
+}

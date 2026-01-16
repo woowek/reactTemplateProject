@@ -2,7 +2,7 @@
  * 홈(대시보드) 페이지
  */
 
-import '/src/assets/css//Home.css'
+import './Home.css'
 
 export const Home = () => {
   return (

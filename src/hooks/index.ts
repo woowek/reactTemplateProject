@@ -2,9 +2,31 @@
  * 커스텀 훅 내보내기
  */
 
-export { useLocalStorage } from './useLocalStorage'
+// Storage
+export { useLocalStorage, useSessionStorage } from './useStorage'
+
+// Debounce
 export { useDebounce } from './useDebounce'
-export { useMediaQuery, useIsMobile, useIsTablet, useIsDesktop } from './useMediaQuery'
-export { usePrevious } from './usePrevious'
-export { useIsMounted } from './useIsMounted'
-export { useClickOutside } from './useClickOutside'
+
+// Media
+export { 
+  useMediaQuery, 
+  useIsMobile, 
+  useIsTablet, 
+  useIsDesktop,
+  usePrefersDarkMode 
+} from './useMedia'
+
+// DOM
+export { 
+  useClickOutside, 
+  useEventListener,
+  useWindowSize 
+} from './useDom'
+
+// Lifecycle
+export { 
+  usePrevious, 
+  useIsMounted,
+  useUpdateEffect 
+} from './useLifecycle'

@@ -1,0 +1,97 @@
+/* ========================================
+   Header Styles
+   ======================================== */
+
+.main-header {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  background-color: var(--color-white);
+  box-shadow: var(--shadow-sm);
+  border-bottom: 1px solid var(--color-gray-200);
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--spacing-lg);
+  height: 64px;
+  max-width: 100%;
+}
+
+.menu-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  transition: background-color var(--transition-base);
+}
+
+.menu-toggle-btn:hover {
+  background-color: var(--color-gray-100);
+}
+
+.hamburger-icon {
+  font-size: 1.5rem;
+}
+
+.app-title {
+  flex: 1;
+  margin: 0 var(--spacing-lg);
+  font-size: var(--text-xl);
+  font-weight: 600;
+  color: var(--color-gray-900);
+}
+
+.header-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.header-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  font-size: 1.25rem;
+  transition: background-color var(--transition-base);
+}
+
+.header-btn:hover {
+  background-color: var(--color-gray-100);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .header-content {
+    padding: 0 var(--spacing-md);
+  }
+
+  .app-title {
+    font-size: var(--text-lg);
+    margin: 0 var(--spacing-md);
+  }
+}
+
+@media (max-width: 480px) {
+  .header-actions {
+    gap: var(--spacing-xs);
+  }
+
+  .header-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 1rem;
+  }
+}

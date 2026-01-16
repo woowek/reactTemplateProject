@@ -15,6 +15,13 @@ export default defineConfig(({ mode }) => {
       port: Number(env.VITE_DEV_PORT) || 3000,
       open: env.VITE_OPEN_BROWSER === 'true',
       host: true, // 네트워크 접근 허용
+      proxy: {
+        // WebSocket 터미널 프록시
+        '/ws': {
+          target: 'ws://localhost:8080',
+          ws: true,
+        },
+      },
     },
     
     // 프리뷰 서버 설정
