@@ -19,16 +19,22 @@ wss.on('connection', (ws) => {
   console.log('✅ 새 터미널 연결')
 
   // 플랫폼에 맞는 shell 선택
-  const shell = os.platform() === 'win32' ? 'powershell.exe' : 'bash'
-  const args = os.platform() === 'win32' ? [] : []
+  const shell = os.platform() === 'win32' ? 'cmd.exe' : 'bash'
+  const args = os.platform() === 'win32' ? ['/K', 'chcp 65001'] : []  // UTF-8 코드페이지
 
   // PTY (가상 터미널) 생성
   const ptyProcess = pty.spawn(shell, args, {
-    name: 'xterm-color',
+    name: 'xterm-256color',
     cols: 80,
     rows: 24,
     cwd: process.env.HOME || process.env.USERPROFILE || process.cwd(),
-    env: process.env,
+    env: {
+      ...process.env,
+      LANG: 'ko_KR.UTF-8',
+      LC_ALL: 'ko_KR.UTF-8',
+      TERM: 'xterm-256color',
+    },
+    encoding: 'utf8',
   })
 
   console.log(`🖥️  Shell 프로세스 생성: ${shell} (PID: ${ptyProcess.pid})`)

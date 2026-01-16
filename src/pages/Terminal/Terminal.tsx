@@ -48,8 +48,10 @@ export const Terminal = () => {
         brightCyan: '#29b8db',
         brightWhite: '#e5e5e5',
       },
-      rows: 24,
-      cols: 80,
+      // rows와 cols를 지정하지 않고 자동으로 맞춤
+      allowProposedApi: true,
+      scrollback: 1000,
+      convertEol: true,
     })
 
     // 애드온 추가
@@ -61,57 +63,27 @@ export const Terminal = () => {
 
     // 터미널 열기
     term.open(terminalRef.current)
-    fitAddon.fit()
-
-    xtermRef.current = term
-    fitAddonRef.current = fitAddon
-
-    // WebSocket 연결
-    const wsUrl = 'ws://localhost:8080'
     
-    term.writeln('\x1b[1;36m🔌 터미널 서버에 연결 중...\x1b[0m')
-    
-    const socket = new WebSocket(wsUrl)
-    socketRef.current = socket
-
-    socket.onopen = () => {
-      setIsConnected(true)
-      setConnectionError(null)
-      term.writeln('\x1b[1;32m✅ 연결 완료!\x1b[0m')
-      term.writeln('\x1b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m')
-      term.writeln('')
-    }
-
-    socket.onerror = () => {
-      setConnectionError('터미널 서버 연결 실패')
-      term.writeln('\x1b[1;31m❌ 연결 실패!\x1b[0m')
-      term.writeln('\x1b[1;33m터미널 서버가 실행 중인지 확인하세요:\x1b[0m')
-      term.writeln('\x1b[0;37m  node terminalServer.js\x1b[0m')
-      term.writeln('')
-    }
-
-    socket.onclose = () => {
-      setIsConnected(false)
-      term.writeln('')
-      term.writeln('\x1b[1;31m🔌 서버 연결이 종료되었습니다.\x1b[0m')
-    }
-
-    // 서버에서 받은 데이터 → 터미널에 표시
-    socket.onmessage = (event) => {
-      term.write(event.data)
-    }
-
-    // 터미널 입력 → 서버로 전송
-    term.onData((data) => {
-      if (socket.readyState === WebSocket.OPEN) {
-        socket.send(data)
-      }
-    })
-
-    // 창 크기 조정 시 터미널 크기 재조정
-    const handleResize = () => {
+    // fit()을 약간 지연시켜서 DOM이 완전히 렌더링된 후 실행
+    setTimeout(() => {
       fitAddon.fit()
-      if (socket.readyState === WebSocket.OPEN) {
+      
+      // 서버에 초기 크기 전달
+      const wsUrl = 'ws://localhost:8080'
+      
+      term.writeln('\x1b[1;36m🔌 터미널 서버에 연결 중...\x1b[0m')
+      
+      const socket = new WebSocket(wsUrl)
+      socketRef.current = socket
+
+      socket.onopen = () => {
+        setIsConnected(true)
+        setConnectionError(null)
+        term.writeln('\x1b[1;32m✅ 연결 완료!\x1b[0m')
+        term.writeln('\x1b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m')
+        term.writeln('')
+        
+        // 연결 직후 터미널 크기 전송
         socket.send(
           JSON.stringify({
             type: 'resize',
@@ -120,13 +92,66 @@ export const Terminal = () => {
           })
         )
       }
-    }
-    window.addEventListener('resize', handleResize)
+
+      socket.onerror = () => {
+        setConnectionError('터미널 서버 연결 실패')
+        term.writeln('\x1b[1;31m❌ 연결 실패!\x1b[0m')
+        term.writeln('\x1b[1;33m터미널 서버가 실행 중인지 확인하세요:\x1b[0m')
+        term.writeln('\x1b[0;37m  node terminalServer.js\x1b[0m')
+        term.writeln('')
+      }
+
+      socket.onclose = () => {
+        setIsConnected(false)
+        term.writeln('')
+        term.writeln('\x1b[1;31m🔌 서버 연결이 종료되었습니다.\x1b[0m')
+      }
+
+      // 서버에서 받은 데이터 → 터미널에 표시
+      socket.onmessage = (event) => {
+        term.write(event.data)
+      }
+
+      // 터미널 입력 → 서버로 전송
+      term.onData((data) => {
+        if (socket.readyState === WebSocket.OPEN) {
+          socket.send(data)
+        }
+      })
+
+      // 창 크기 조정 시 터미널 크기 재조정
+      const handleResize = () => {
+        fitAddon.fit()
+        if (socket.readyState === WebSocket.OPEN) {
+          socket.send(
+            JSON.stringify({
+              type: 'resize',
+              cols: term.cols,
+              rows: term.rows,
+            })
+          )
+        }
+      }
+      window.addEventListener('resize', handleResize)
+
+      // cleanup 함수 저장
+      xtermRef.current = term
+      fitAddonRef.current = fitAddon
+      
+      // cleanup을 위한 함수 반환
+      return () => {
+        window.removeEventListener('resize', handleResize)
+        socket.close()
+      }
+    }, 100) // 100ms 지연
 
     return () => {
-      window.removeEventListener('resize', handleResize)
-      socket.close()
-      term.dispose()
+      if (xtermRef.current) {
+        xtermRef.current.dispose()
+      }
+      if (socketRef.current) {
+        socketRef.current.close()
+      }
     }
   }, [])
 
